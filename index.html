@@ -229,7 +229,9 @@
     <script>
 
       // ===== 設定區（含待替換的佔位符，見各行 TODO） =====
-      var LIFF_ID = 'YOUR_LIFF_ID'; // TODO: 於 LINE Developers 申請 LIFF 頻道後替換，Endpoint URL 需指向本 GAS 網頁應用程式的 /exec 網址
+      // 本頁面現在是純靜態頁面（放在 GitHub Pages），資料存取一律透過 fetch() 呼叫下方的 GAS Web App /exec 網址
+      var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwWErV8D5EELSPMuK3Gg2DuBAcrNeUsshqqYvqIjq7-sznkbZIuLJuiXFzADUH9VFMG/exec';
+      var LIFF_ID = 'YOUR_LIFF_ID'; // TODO: 於 LINE Developers 申請 LIFF 頻道後替換，Endpoint URL 需指向本頁面在 GitHub Pages 上的網址
       var BANK_NAME = '合作金庫(006)';
       var BANK_ACCOUNT = '0570717234066';
       var BANK_HOLDER = '順道實業有限公司';
@@ -313,10 +315,17 @@
         container.innerHTML = '查詢中...';
         document.getElementById('submitBtn').disabled = true;
 
-        google.script.run.withSuccessHandler(function(takenSlots) {
-          renderTimeSlots(takenSlots);
-          document.getElementById('loading').style.display = 'none';
-        }).getTakenSlots(dateStr);
+        fetch(GAS_API_URL + '?action=getTakenSlots&date=' + encodeURIComponent(dateStr), { redirect: 'follow' })
+          .then(function(r) { return r.json(); })
+          .then(function(takenSlots) {
+            renderTimeSlots(takenSlots);
+            document.getElementById('loading').style.display = 'none';
+          })
+          .catch(function(err) {
+            console.error('getTakenSlots failed:', err);
+            document.getElementById('loading').style.display = 'none';
+            container.innerHTML = '<div style="width:100%; color:#D84315; font-weight:bold;">查詢時段失敗，請檢查網路連線後重新選擇日期。</div>';
+          });
       }
 
       // 渲染時段按鈕
@@ -453,42 +462,49 @@
         document.getElementById('webBlockedMessage').style.display = 'block';
       }
 
-      // ===== 組出回傳給 LINE 的預約確認文字 =====
-      function buildFinalText() {
-        var name = document.getElementById('name').value;
-        var phone = document.getElementById('phone').value;
-        var peopleCount = document.getElementById('peopleCount').value;
-        var flavor1 = document.getElementById('flavor1').value;
-        var flavor2 = document.getElementById('flavor2').value;
-        var date = document.getElementById('date').value;
+      // 蒐集送出當下的表單資料（同一份資料同時用於送到 GAS 與組出回傳LINE的文字，避免兩邊不一致）
+      function collectFormData() {
         var timeInput = document.querySelector('input[name="time"]:checked');
-        var time = timeInput ? timeInput.value : '';
-        var paymentMethod = document.getElementById('paymentMethod').value;
-        var last5 = document.getElementById('last5').value;
-        var totalAmount = document.getElementById('totalAmountField').value;
+        return {
+          userId: document.getElementById('userIdField').value,
+          lineName: document.getElementById('lineNameField').value,
+          name: document.getElementById('name').value,
+          phone: document.getElementById('phone').value,
+          peopleCount: document.getElementById('peopleCount').value,
+          flavor1: document.getElementById('flavor1').value,
+          flavor2: document.getElementById('flavor2').value,
+          date: document.getElementById('date').value,
+          time: timeInput ? timeInput.value : '',
+          paymentMethod: document.getElementById('paymentMethod').value,
+          last5: document.getElementById('last5').value,
+          totalAmount: document.getElementById('totalAmountField').value
+        };
+      }
 
+      // ===== 組出回傳給 LINE 的預約確認文字 =====
+      function buildFinalText(data) {
         var lines = [];
         lines.push('【LikeaDream門市試吃預約】');
-        lines.push('姓名：' + name);
-        lines.push('電話：' + phone);
-        lines.push('人數：' + peopleCount + '人');
-        lines.push('口味：' + flavor1 + (flavor2 ? '、' + flavor2 : ''));
-        lines.push('日期：' + date);
-        lines.push('時段：' + time);
-        lines.push('金額：NT$' + totalAmount);
-        lines.push('付款方式：' + paymentMethod);
-        if (paymentMethod === '匯款轉帳') {
-          lines.push('匯款後五碼：' + last5);
+        lines.push('姓名：' + data.name);
+        lines.push('電話：' + data.phone);
+        lines.push('人數：' + data.peopleCount + '人');
+        lines.push('口味：' + data.flavor1 + (data.flavor2 ? '、' + data.flavor2 : ''));
+        lines.push('日期：' + data.date);
+        lines.push('時段：' + data.time);
+        lines.push('金額：NT$' + data.totalAmount);
+        lines.push('付款方式：' + data.paymentMethod);
+        if (data.paymentMethod === '匯款轉帳') {
+          lines.push('匯款後五碼：' + data.last5);
           lines.push('（稍後補上匯款截圖，請協助安排！）');
-        } else if (paymentMethod === 'LINE PAY') {
+        } else if (data.paymentMethod === 'LINE PAY') {
           lines.push('（稍後補上付款截圖，請協助安排！）');
         }
         return lines.join('\n');
       }
 
       // ===== 送出成功畫面（含付款提醒＋回傳LINE三層 fallback） =====
-      function showSuccess() {
-        var paymentMethod = document.getElementById('paymentMethod').value;
+      function showSuccess(data) {
+        var paymentMethod = data.paymentMethod;
         var msgBox = document.getElementById('successMessage');
         msgBox.style.display = 'block';
 
@@ -523,7 +539,7 @@
 
         msgBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        pendingOrderText = buildFinalText();
+        pendingOrderText = buildFinalText(data);
         trySendMessages();
       }
 
@@ -596,19 +612,34 @@
         // 2. 顯示載入中遮罩
         document.getElementById('loading').style.display = 'flex';
 
-        // 3. 呼叫後端寫入資料
-        google.script.run.withSuccessHandler(function(response) {
-          document.getElementById('loading').style.display = 'none';
+        // 3. 呼叫後端(GAS Web App)寫入資料
+        // ✅ Content-Type 刻意用 text/plain，避免瀏覽器對 GAS 發出 CORS 預檢請求(OPTIONS)而失敗
+        var data = collectFormData();
+        fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          redirect: 'follow',
+          body: JSON.stringify(data)
+        })
+          .then(function(r) { return r.text(); })
+          .then(function(text) {
+            document.getElementById('loading').style.display = 'none';
+            var response = JSON.parse(text);
 
-          if (response.status === 'success') {
-            // 隱藏表單，顯示成功訊息
-            form.style.display = 'none';
-            showSuccess();
-          } else {
-            alert(response.message);
-            checkAvailability(); // 若被搶單，重新整理時段
-          }
-        }).processForm(form);
+            if (response.status === 'success') {
+              // 隱藏表單，顯示成功訊息
+              form.style.display = 'none';
+              showSuccess(data);
+            } else {
+              alert(response.message);
+              checkAvailability(); // 若被搶單，重新整理時段
+            }
+          })
+          .catch(function(err) {
+            console.error('submitBooking failed:', err);
+            document.getElementById('loading').style.display = 'none';
+            alert('送出失敗，請確認網路連線後再試一次。');
+          });
       }
 
       // ===== 頁面載入時初始化 =====

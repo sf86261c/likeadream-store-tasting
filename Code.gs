@@ -2,11 +2,32 @@
 var SHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var SHEET_NAME = "預約資料"; // 請確保與您的工作表名稱一致
 
-function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-      .evaluate()
-      .setTitle('門市試吃預約系統')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+// 前端(index.html)現在改放在 GitHub Pages，本專案只當作 JSON API 後端，
+// 所以不再用 HtmlService 回傳頁面本體，一律回傳 JSON。
+function jsonOutput(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+      .setMimeType(ContentService.MimeType.JSON);
+}
+
+// GET ?action=getTakenSlots&date=YYYY-MM-DD：查詢某日已佔用時段
+function doGet(e) {
+  var action = e && e.parameter && e.parameter.action;
+  if (action === 'getTakenSlots') {
+    return jsonOutput(getTakenSlots(e.parameter.date));
+  }
+  return jsonOutput({status: 'ok', message: '門市試吃預約 API 運作中'});
+}
+
+// POST：表單提交。前端用 Content-Type: text/plain 送出 JSON 字串，
+// 避免瀏覽器對 GAS 發出 CORS 預檢請求(OPTIONS)導致失敗，故手動解析 postData.contents。
+function doPost(e) {
+  var formObject;
+  try {
+    formObject = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return jsonOutput({status: 'error', message: '資料格式錯誤，請稍後再試。'});
+  }
+  return jsonOutput(processForm(formObject));
 }
 
 // 取得特定日期的已佔用時段
