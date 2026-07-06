@@ -148,6 +148,7 @@
             <option value="1" selected>1人</option>
             <option value="2">2人</option>
           </select>
+          <div id="totalAmountDisplay" class="important-text mt-1"></div>
         </div>
 
         <div class="info-box">
@@ -254,7 +255,9 @@
           flavor2Select.value = '';                 // 清空已選值，避免誤傳
         }
 
-        document.getElementById('totalAmountField').value = String(Number(count) * 100);
+        var total = Number(count) * 100;
+        document.getElementById('totalAmountField').value = String(total);
+        document.getElementById('totalAmountDisplay').innerText = '💰 共需支付 NT$' + total;
       }
       // 本次開放預約的起始日期，以及已額滿的特定日期（額滿時可在此陣列加入更多日期）
       var reservationStartDate = '2026-07-10';
@@ -643,6 +646,7 @@
       }
 
       // ===== 頁面載入時初始化 =====
+      toggleFlavor2(); // 預設1人時，先顯示一次應付金額
       initPaymentDisplay();
       initializeLiff();
     </script>
