@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+      /* 整體背景與字體顏色 */
+      body {
+        background-color: #FFF6E5;
+        padding: 20px 20px 50px 20px;
+        /* ✅ 關鍵修改：優先使用可愛圓體，若有罕見字再用微軟正黑體補上 */
+        font-family: 'M PLUS Rounded 1c', "Microsoft JhengHei", sans-serif;
+        color: #5C4033;
+        position: relative;
+        min-height: 100vh;
+      }
+
+      /* 主容器：大圓角、柔和陰影、可愛邊框 */
+      .container {
+        max-width: 600px;
+        background: #FFFFFF; /* ✅ 改回純白色實體背景 */
+        padding: 40px 30px;
+        border-radius: 30px;
+        box-shadow: 0 10px 25px rgba(230, 190, 190, 0.3);
+        border: 3px solid #FFE4E1;
+        margin-bottom: 130px; /* ✅ 保持底部留白，讓使用者可以滑到底部看到圖 */
+      }
+
+      h2 { font-weight: bold; color: #D2691E; }
+
+      /* 預約須知：改為溫暖的奶油黃色與虛線邊框 */
+      .notice-box { background-color: #FFF9C4; border: 2px dashed #FFD54F; padding: 15px; border-radius: 20px; color: #E65100; margin-bottom: 25px; }
+      .important-text { color: #D84315; font-weight: bold; }
+
+      /* 胖胖輸入框與下拉選單 */
+      .form-control, .form-select { border-radius: 25px; padding: 12px 20px; border: 2px solid #FFCDD2; font-size: 1rem; color: #5C4033; transition: 0.3s; }
+      .form-control:focus, .form-select:focus { border-color: #FF8A80; box-shadow: 0 0 0 0.25rem rgba(255, 138, 128, 0.25); outline: none; }
+
+      /* 溫馨按鈕 (立即預約) */
+      .btn-primary { background-color: #FF8A80; border: none; border-radius: 30px; padding: 15px; font-weight: bold; font-size: 1.15rem; color: white; transition: 0.3s; box-shadow: 0 4px 10px rgba(255, 138, 128, 0.4); }
+      .btn-primary:hover, .btn-primary:focus { background-color: #FF5252; box-shadow: 0 6px 15px rgba(255, 82, 82, 0.5); transform: translateY(-2px); }
+      .btn-primary:disabled { background-color: #FFEBEE; color: #FFCDD2; box-shadow: none; transform: none; }
+
+      /* 試吃內容說明框：改為薄荷綠/抹茶色調，顯得清爽 */
+      .info-box { background-color: #F1F8E9; border: 2px solid #C5E1A5; border-radius: 20px; padding: 12px 20px; font-size: 0.95rem; color: #558B2F; margin-bottom: 1rem; }
+
+      /* 匯款資訊框 */
+      .bank-info { background-color: #FFF9C4; border: 2px dashed #FFD54F; border-radius: 15px; padding: 12px 16px; margin-bottom: 10px; color: #E65100; }
+      .bank-highlight { font-weight: bold; font-size: 1.1rem; color: #D2691E; }
+      .btn-copy-small { background-color: #FF8A80; color: #fff; border: none; border-radius: 15px; padding: 4px 12px; font-size: 0.8rem; margin-left: 8px; cursor: pointer; }
+
+      /* === 時段按鈕標籤化 (胖胖小方塊) === */
+      #time-slots-container { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+      .time-slot-item .form-check-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+} /* ✅ 視覺隱藏，但保留 DOM 實體讓 iOS 可以順利驗證 */
+      .time-slot-item .form-check-label { background-color: #FFF0F5; border: 2px solid #F8BBD0; border-radius: 20px; padding: 10px 22px; cursor: pointer; transition: 0.2s; color: #D81B60; font-weight: bold; }
+      .time-slot-item .form-check-input:checked + .form-check-label { background-color: #F06292; color: white; border-color: #F06292; box-shadow: 0 4px 10px rgba(240, 98, 146, 0.4); transform: scale(1.05); }
+      .time-slot-item .form-check-input:disabled + .form-check-label { background-color: #F5F5F5; border-color: #E0E0E0; color: #BDBDBD; cursor: not-allowed; text-decoration: line-through; }
+
+      /* 成功提示訊息 */
+      .success-message {
+        background-color: #E8F5E9;
+        border: 2px solid #A5D6A7;
+        border-radius: 20px;
+        padding: 25px 20px;
+        text-align: center;
+        color: #2E7D32;
+        font-size: 1.05rem;
+        margin-top: 20px;
+        animation: fadeIn 0.5s ease;
+      }
+      .success-message h4 { color: #2E7D32; font-weight: bold; margin-bottom: 10px; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* 載入遮罩 */
+      #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,245,245,0.85); z-index: 9999; justify-content: center; align-items: center; }
+      #footer-decoration {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 999; /* 放在背景層 */
+        text-align: center;
+        pointer-events: none !important; /* ✅ 加入 !important 強制穿透 */
+      }
+
+      #footer-decoration img {
+        width: 100%;
+        max-width: 800px; /* 限制最大寬度，避免在電腦大螢幕上變得無限大 */
+        height: auto;
+        opacity: 0.95; /* 微微的一點透明度，更融入背景 */
+        vertical-align: bottom; /* 消除圖片底部的預設白邊 */
+        pointer-events: none !important; /* ✅ 關鍵：讓圖片實體也徹底放棄攔截點擊 */
+      }
+
+      /* LIFF 阻擋畫面（非 LINE App 內開啟時顯示） */
+      #webBlockedMessage { text-align: center; padding: 60px 20px; color: #5C4033; }
+    </style>
+  </head>
+  <body>
+
+    <div id="loading">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+
+    <div id="webBlockedMessage" style="display:none;">
+      <h4>請於 LINE App 內開啟本頁面</h4>
+      <p>請透過 LikeaDream LINE 官方帳號提供的連結開啟預約表單喔！</p>
+    </div>
+
+    <div class="container">
+      <h2 class="text-center mb-4">LikeaDream門市試吃預約</h2>
+
+      <div class="notice-box">
+        <h5>⚠️ 預約須知（請務必閱讀）</h5>
+        <ul>
+          <li><strong>預約未完成：</strong>填寫後<span class="important-text">必須與客服人員確認，才算預約成功</span>。</li>
+          <li><strong>變更政策：</strong>若需變更日期，請至少<span class="important-text">提前 2 日（不含當天）</span>告知。</li>
+          <li><strong>門市試吃價：<span class="important-text">100元/人，後續下訂可折抵</span>。</li>
+        </ul>
+      </div>
+
+      <form id="bookingForm">
+
+        <input type="hidden" id="userIdField" name="userId" value="">
+        <input type="hidden" id="lineNameField" name="lineName" value="">
+        <input type="hidden" id="totalAmountField" name="totalAmount" value="100">
+
+        <div class="mb-3">
+          <label for="name" class="form-label">姓名</label>
+          <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="phone" class="form-label">電話</label>
+          <input type="tel" class="form-control" id="phone" name="phone" pattern="[0-9]{10}" title="請輸入10碼數字，例如：0912345678" placeholder="例如：0912345678" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="peopleCount" class="form-label">人數</label>
+          <select class="form-select" id="peopleCount" name="peopleCount" required onchange="toggleFlavor2()">
+            <option value="1" selected>1人</option>
+            <option value="2">2人</option>
+          </select>
+        </div>
+
+        <div class="info-box">
+          💡 <strong>試吃內容：</strong><br>
+          門市試吃會提供蜂蜜蛋糕試吃，以及全品項手工餅乾 5 塊。
+        </div>
+
+        <div class="mb-3">
+          <label for="flavor1" class="form-label">試吃蛋糕口味</label>
+          <select class="form-select" id="flavor1" name="flavor1" required>
+            <option value="" disabled selected>請選擇口味</option>
+            <option value="經典原味">經典原味</option>
+            <option value="伯爵紅茶">伯爵紅茶</option>
+            <option value="茉莉花茶">茉莉花茶</option>
+          </select>
+        </div>
+
+        <div class="mb-3" id="flavor2-container" style="display: none;">
+          <label for="flavor2" class="form-label">試吃蛋糕口味</label>
+          <select class="form-select" id="flavor2" name="flavor2">
+            <option value="" disabled selected>請選擇口味</option>
+            <option value="經典原味">經典原味</option>
+            <option value="伯爵紅茶">伯爵紅茶</option>
+            <option value="茉莉花茶">茉莉花茶</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="date" class="form-label">選擇日期</label>
+          <input type="date" class="form-control" id="date" name="date" required onchange="checkAvailability()">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">選擇時段</label>
+          <div id="time-slots-container">
+            <p class="text-muted small">請先選擇日期以查看可預約時段</p>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="paymentMethod" class="form-label">付款方式</label>
+          <select class="form-select" id="paymentMethod" name="paymentMethod" required onchange="togglePayment()">
+            <option value="匯款轉帳" selected>匯款轉帳</option>
+            <option value="LINE PAY">LINE PAY</option>
+          </select>
+        </div>
+
+        <div id="bankInfoArea" class="bank-info">
+          <span id="bankNameDisplay"></span><br>
+          <span class="bank-highlight" id="bankAccountDisplay"></span>
+          <button type="button" class="btn-copy-small" onclick="copyBankAccount()">複製帳號</button><br>
+          戶名：<span id="bankHolderDisplay"></span>
+          <div class="mt-2">
+            <label for="last5" class="form-label">匯款帳號後五碼</label>
+            <input type="text" class="form-control" id="last5" name="last5" placeholder="請輸入匯款後5碼" maxlength="5" pattern="\d{5}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+          </div>
+          <div style="font-size:12px; color:#888;">(網銀備註請勿留字)</div>
+        </div>
+
+        <div id="linePayInfoArea" class="info-box" style="display:none;">
+          🟢 送出預約後，畫面將出現 LINE Pay 付款連結，請點擊完成付款。
+        </div>
+
+        <div class="mb-3 form-check" style="margin-top: 20px;">
+          <input type="checkbox" class="form-check-input" id="agreeRules" required style="width: 1.2rem; height: 1.2rem; margin-top: 0.2rem;">
+          <label class="form-check-label" for="agreeRules" style="color: #D84315; font-weight: bold; font-size: 0.95rem; margin-left: 5px;">
+            我已閱讀預約須知，並了解需與客服確認才算預約成功。
+          </label>
+        </div>
+
+        <button type="button" class="btn btn-primary w-100" id="submitBtn" onclick="submitBooking()" disabled>立即預約</button>
+      </form>
+
+      <div id="successMessage" style="display: none;"></div>
+    </div>
+    <div id="footer-decoration">
+      <img src="https://i.ibb.co/7dvJvwdK/Gemini-Generated-Image-kxermdkxermdkxer-removebg-preview.png" alt="溫馨裝飾">
+    </div>
+    <script>
+
+      // ===== 設定區（含待替換的佔位符，見各行 TODO） =====
+      var LIFF_ID = 'YOUR_LIFF_ID'; // TODO: 於 LINE Developers 申請 LIFF 頻道後替換，Endpoint URL 需指向本 GAS 網頁應用程式的 /exec 網址
+      var BANK_NAME = '合作金庫(006)';
+      var BANK_ACCOUNT = '0570717234066';
+      var BANK_HOLDER = '順道實業有限公司';
+      var LINE_PAY_QR_URL = 'https://qrcodepay.line.me/qr/payment/REPLACE_WITH_REAL_LINEPAY_URL'; // TODO: 換成門市試吃專用的 LINE Pay 收款連結
+      var LINE_OA_URL = 'https://lin.ee/REPLACE_WITH_REAL_OA_LINK'; // TODO: 換成門市試吃的 LINE 官方帳號連結
+
+      var pendingOrderText = '';
+
+      function toggleFlavor2() {
+        var count = document.getElementById('peopleCount').value;
+        var flavor2Container = document.getElementById('flavor2-container');
+        var flavor2Select = document.getElementById('flavor2');
+
+        if (count === '2') {
+          flavor2Container.style.display = 'block'; // 顯示
+          flavor2Select.required = true;            // 設為必填
+        } else {
+          flavor2Container.style.display = 'none';  // 隱藏
+          flavor2Select.required = false;           // 取消必填
+          flavor2Select.value = '';                 // 清空已選值，避免誤傳
+        }
+
+        document.getElementById('totalAmountField').value = String(Number(count) * 100);
+      }
+      // 本次開放預約的起始日期，以及已額滿的特定日期（額滿時可在此陣列加入更多日期）
+      var reservationStartDate = '2026-07-10';
+      var fullyBookedDates = ['2026-07-18'];
+
+      // 計算最早可預約日期：下午5點前可選隔天，5點後最早選後天
+      (function() {
+        var now = new Date();
+        var minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (now.getHours() < 17) {
+          minDate.setDate(minDate.getDate() + 1); // 5點前：最早明天
+        } else {
+          minDate.setDate(minDate.getDate() + 2); // 5點後：最早後天
+        }
+        var minDateStr = minDate.getFullYear() + '-' +
+          String(minDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(minDate.getDate()).padStart(2, '0');
+        if (minDateStr < reservationStartDate) {
+          minDateStr = reservationStartDate; // 尚未到開放起始日，以起始日為準
+        }
+        document.getElementById('date').min = minDateStr;
+      })();
+
+      // 檢查可用時段
+      function checkAvailability() {
+        var dateStr = document.getElementById('date').value;
+        if (!dateStr) return;
+
+        // 防止選到當天（安全檢查）
+        var now = new Date();
+        var todayStr = now.getFullYear() + '-' +
+          String(now.getMonth() + 1).padStart(2, '0') + '-' +
+          String(now.getDate()).padStart(2, '0');
+        if (dateStr <= todayStr) {
+          alert("抱歉，無法預約當天時段，請選擇明天之後的日期喔！");
+          document.getElementById('date').value = '';
+          return;
+        }
+
+        // 防止用其他方式選到開放範圍之前、或已額滿的特定日期（安全檢查）
+        if (dateStr < reservationStartDate || fullyBookedDates.includes(dateStr)) {
+          document.getElementById('date').value = '';
+          document.getElementById('time-slots-container').innerHTML =
+            '<div style="width:100%; color:#D84315; font-weight:bold;">該日已額滿，請改選其他日期</div>';
+          return;
+        }
+
+        var selectedDate = new Date(dateStr);
+        // getDay() 回傳 0 代表週日，6 代表週六，1-5 代表週一至週五
+        if (selectedDate.getDay() === 0) {
+  alert("週日門市無營業，請改選其他日期");
+  document.getElementById('date').value = ''; // ✅ 修正：精準抓取 DOM 元素並清空值
+  return;
+}
+
+        document.getElementById('loading').style.display = 'flex';
+        var container = document.getElementById('time-slots-container');
+        container.innerHTML = '查詢中...';
+        document.getElementById('submitBtn').disabled = true;
+
+        google.script.run.withSuccessHandler(function(takenSlots) {
+          renderTimeSlots(takenSlots);
+          document.getElementById('loading').style.display = 'none';
+        }).getTakenSlots(dateStr);
+      }
+
+      // 渲染時段按鈕
+      function renderTimeSlots(takenSlots) {
+        var allSlots = ['11:00', '15:00', '16:00'];
+        var container = document.getElementById('time-slots-container');
+        container.innerHTML = '';
+        var hasAvailable = false;
+
+        allSlots.forEach(function(time) {
+          var isTaken = takenSlots.includes(time);
+
+          // 修改 class 為我們自訂的 time-slot-item
+          var div = document.createElement('div');
+          div.className = 'time-slot-item';
+
+          var input = document.createElement('input');
+          input.type = 'radio';
+          input.className = 'form-check-input';
+          input.name = 'time';
+          input.value = time;
+          input.id = 'time-' + time;
+          input.required = true;
+
+          if (isTaken) {
+            input.disabled = true;
+          } else {
+            hasAvailable = true;
+          }
+
+          var label = document.createElement('label');
+          label.className = 'form-check-label';
+          label.htmlFor = 'time-' + time;
+          // 額滿時的文字加上可愛提示
+          label.innerText = time + (isTaken ? ' (已滿)' : '');
+
+          div.appendChild(input);
+          div.appendChild(label);
+          container.appendChild(div);
+        });
+
+        if (hasAvailable) {
+          document.getElementById('submitBtn').disabled = false;
+        } else {
+          container.innerHTML = '<div style="width:100%; color:#D84315; font-weight:bold;">🥺 本日所有時段皆已額滿，請選擇其他日期喔！</div>';
+        }
+      }
+
+      // ===== 付款方式切換（比照 likeadream-tasting togglePayment 模式） =====
+      function togglePayment() {
+        var method = document.getElementById('paymentMethod').value;
+        var bankArea = document.getElementById('bankInfoArea');
+        var linePayArea = document.getElementById('linePayInfoArea');
+        var last5Input = document.getElementById('last5');
+
+        if (method === 'LINE PAY') {
+          bankArea.style.display = 'none';
+          linePayArea.style.display = 'block';
+          last5Input.required = false;
+        } else {
+          bankArea.style.display = 'block';
+          linePayArea.style.display = 'none';
+          last5Input.required = true;
+        }
+      }
+
+      function initPaymentDisplay() {
+        document.getElementById('bankNameDisplay').innerText = BANK_NAME;
+        document.getElementById('bankAccountDisplay').innerText = BANK_ACCOUNT;
+        document.getElementById('bankHolderDisplay').innerText = BANK_HOLDER;
+        togglePayment();
+      }
+
+      function copyBankAccount() {
+        var acct = document.getElementById('bankAccountDisplay').innerText;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(acct).then(function() {
+            alert('帳號已複製');
+          }).catch(function() {
+            fallbackCopyText(acct);
+          });
+        } else {
+          fallbackCopyText(acct);
+        }
+      }
+
+      // execCommand 複製後援（相容部分 iOS LINE 內建瀏覽器）
+      function fallbackCopyText(text) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          alert('已複製：' + text);
+        } catch (e) {
+          alert('複製失敗，請手動複製：' + text);
+        }
+        document.body.removeChild(textarea);
+      }
+
+      // ===== LIFF 初始化（送出回傳至LINE視窗的前提） =====
+      function initializeLiff() {
+        if (typeof liff === 'undefined') {
+          showWebBlocked();
+          return;
+        }
+        liff.init({ liffId: LIFF_ID }).then(function() {
+          if (!liff.isInClient()) {
+            showWebBlocked();
+            return;
+          }
+          if (liff.isLoggedIn()) {
+            liff.getProfile().then(function(profile) {
+              document.getElementById('userIdField').value = profile.userId;
+              document.getElementById('lineNameField').value = profile.displayName;
+            }).catch(function(err) {
+              console.error('getProfile failed:', err);
+            });
+          } else {
+            liff.login();
+          }
+        }).catch(function(err) {
+          console.error('LIFF init failed:', err);
+          showWebBlocked();
+        });
+      }
+
+      function showWebBlocked() {
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('webBlockedMessage').style.display = 'block';
+      }
+
+      // ===== 組出回傳給 LINE 的預約確認文字 =====
+      function buildFinalText() {
+        var name = document.getElementById('name').value;
+        var phone = document.getElementById('phone').value;
+        var peopleCount = document.getElementById('peopleCount').value;
+        var flavor1 = document.getElementById('flavor1').value;
+        var flavor2 = document.getElementById('flavor2').value;
+        var date = document.getElementById('date').value;
+        var timeInput = document.querySelector('input[name="time"]:checked');
+        var time = timeInput ? timeInput.value : '';
+        var paymentMethod = document.getElementById('paymentMethod').value;
+        var last5 = document.getElementById('last5').value;
+        var totalAmount = document.getElementById('totalAmountField').value;
+
+        var lines = [];
+        lines.push('【LikeaDream門市試吃預約】');
+        lines.push('姓名：' + name);
+        lines.push('電話：' + phone);
+        lines.push('人數：' + peopleCount + '人');
+        lines.push('口味：' + flavor1 + (flavor2 ? '、' + flavor2 : ''));
+        lines.push('日期：' + date);
+        lines.push('時段：' + time);
+        lines.push('金額：NT$' + totalAmount);
+        lines.push('付款方式：' + paymentMethod);
+        if (paymentMethod === '匯款轉帳') {
+          lines.push('匯款後五碼：' + last5);
+          lines.push('（稍後補上匯款截圖，請協助安排！）');
+        } else if (paymentMethod === 'LINE PAY') {
+          lines.push('（稍後補上付款截圖，請協助安排！）');
+        }
+        return lines.join('\n');
+      }
+
+      // ===== 送出成功畫面（含付款提醒＋回傳LINE三層 fallback） =====
+      function showSuccess() {
+        var paymentMethod = document.getElementById('paymentMethod').value;
+        var msgBox = document.getElementById('successMessage');
+        msgBox.style.display = 'block';
+
+        var paymentAreaHtml = '';
+        if (paymentMethod === 'LINE PAY') {
+          paymentAreaHtml =
+            '<div id="successLinePayArea" style="margin-top:15px;">' +
+              '<p>🟢 請點擊下方按鈕完成付款</p>' +
+              '<a href="' + LINE_PAY_QR_URL + '" target="_blank" class="btn" style="background:#06c755;color:#fff;border-radius:20px;padding:10px 20px;">前往 LINE PAY 付款</a>' +
+              '<div style="margin-top:10px; font-size:0.9rem; color:#D84315;">⚠️ 付款完成後，請務必【截圖付款成功畫面】，並連同下方的預約內容一併回傳給小幫手確認喔！</div>' +
+            '</div>';
+        } else {
+          paymentAreaHtml =
+            '<div style="margin-top:15px; font-size:0.9rem; color:#D84315;">⚠️ 請於轉帳完成後，將【轉帳成功畫面截圖】連同下方的預約內容一併回傳給小幫手確認喔！</div>';
+        }
+
+        msgBox.innerHTML =
+          '<div class="success-message">' +
+            '<h4>🎉 已送出預約資料</h4>' +
+            '<p>請等待客服人員聯繫確認才算預約成功。</p>' +
+            paymentAreaHtml +
+            '<div id="sendOrderArea" style="margin-top:20px;">' +
+              '<p id="sendOrderStatus" class="text-muted small"></p>' +
+              '<div id="manualCopyArea" style="display:none;">' +
+                '<button type="button" class="btn btn-primary" onclick="manualCopyOrder()">📋 複製預約內容</button>' +
+                '<a id="goToLineArea" href="' + LINE_OA_URL + '" target="_blank">' +
+                  '<button type="button" class="btn btn-primary mt-2" style="background:#06c755;">🚀 前往 LINE 回傳預約內容</button>' +
+                '</a>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
+        msgBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        pendingOrderText = buildFinalText();
+        trySendMessages();
+      }
+
+      // Tier 1：直接送回目前的 LINE 對話視窗
+      function trySendMessages() {
+        if (typeof liff === 'undefined' || !liff.isInClient()) {
+          trySharePicker();
+          return;
+        }
+        liff.sendMessages([{ type: 'text', text: pendingOrderText }])
+          .then(function() {
+            document.getElementById('sendOrderStatus').innerText = '✅ 預約內容已自動回傳至LINE對話';
+            document.getElementById('manualCopyArea').style.display = 'none';
+          })
+          .catch(function(err) {
+            console.error('sendMessages failed:', err);
+            trySharePicker();
+          });
+      }
+
+      // Tier 2：開啟 LINE 原生分享選擇器
+      function trySharePicker() {
+        if (typeof liff === 'undefined' || !liff.isApiAvailable || !liff.isApiAvailable('shareTargetPicker')) {
+          showCopyFallback();
+          return;
+        }
+        liff.shareTargetPicker([{ type: 'text', text: pendingOrderText }])
+          .then(function(res) {
+            if (res) {
+              document.getElementById('sendOrderStatus').innerText = '✅ 預約內容已透過LINE分享';
+              document.getElementById('manualCopyArea').style.display = 'none';
+            } else {
+              showCopyFallback();
+            }
+          })
+          .catch(function(err) {
+            console.error('shareTargetPicker failed:', err);
+            showCopyFallback();
+          });
+      }
+
+      // Tier 3：手動複製 + 前往LINE官方帳號連結
+      function showCopyFallback() {
+        document.getElementById('sendOrderStatus').innerText = '請手動複製預約內容並回傳至LINE：';
+        document.getElementById('manualCopyArea').style.display = 'block';
+      }
+
+      function manualCopyOrder() {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(pendingOrderText).then(function() {
+            alert('已複製，請貼到 LINE 對話送出');
+          }).catch(function() {
+            fallbackCopyText(pendingOrderText);
+          });
+        } else {
+          fallbackCopyText(pendingOrderText);
+        }
+      }
+
+      // 處理表單送出
+      function submitBooking() {
+        var form = document.getElementById('bookingForm');
+
+        // 1. 手動觸發原生的必填與格式驗證 (包含電話 10 碼、匯款後5碼、同意條款)
+        if (!form.checkValidity()) {
+          form.reportValidity(); // 如果有漏填或格式錯，瀏覽器會自動標示出來
+          return;
+        }
+
+        // 2. 顯示載入中遮罩
+        document.getElementById('loading').style.display = 'flex';
+
+        // 3. 呼叫後端寫入資料
+        google.script.run.withSuccessHandler(function(response) {
+          document.getElementById('loading').style.display = 'none';
+
+          if (response.status === 'success') {
+            // 隱藏表單，顯示成功訊息
+            form.style.display = 'none';
+            showSuccess();
+          } else {
+            alert(response.message);
+            checkAvailability(); // 若被搶單，重新整理時段
+          }
+        }).processForm(form);
+      }
+
+      // ===== 頁面載入時初始化 =====
+      initPaymentDisplay();
+      initializeLiff();
+    </script>
+  </body>
+</html>
