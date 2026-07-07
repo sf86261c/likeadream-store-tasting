@@ -4,8 +4,10 @@
     <base target="_top">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
     @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+      :root { --primary: #FF8A80; --primary-dark: #e0574d; }
       /* 整體背景與字體顏色 */
       body {
         background-color: #FFF6E5;
@@ -34,14 +36,15 @@
       .notice-box { background-color: #FFF9C4; border: 2px dashed #FFD54F; padding: 15px; border-radius: 20px; color: #E65100; margin-bottom: 25px; }
       .important-text { color: #D84315; font-weight: bold; }
 
-      /* 胖胖輸入框與下拉選單 */
-      .form-control, .form-select { border-radius: 25px; padding: 12px 20px; border: 2px solid #FFCDD2; font-size: 1rem; color: #5C4033; transition: 0.3s; }
-      .form-control:focus, .form-select:focus { border-color: #FF8A80; box-shadow: 0 0 0 0.25rem rgba(255, 138, 128, 0.25); outline: none; }
+      /* 胖胖輸入框與下拉選單（圓角 12px + focus 光暈微抬升） */
+      .form-control, .form-select { border-radius: 12px; padding: 12px 20px; border: 2px solid #FFCDD2; font-size: 1rem; color: #5C4033; transition: border-color .25s, box-shadow .25s, transform .25s; }
+      .form-control:focus, .form-select:focus { border-color: #FF8A80; box-shadow: 0 0 0 0.25rem rgba(255, 138, 128, 0.25); outline: none; transform: translateY(-1px); }
 
-      /* 溫馨按鈕 (立即預約) */
-      .btn-primary { background-color: #FF8A80; border: none; border-radius: 30px; padding: 15px; font-weight: bold; font-size: 1.15rem; color: white; transition: 0.3s; box-shadow: 0 4px 10px rgba(255, 138, 128, 0.4); }
-      .btn-primary:hover, .btn-primary:focus { background-color: #FF5252; box-shadow: 0 6px 15px rgba(255, 82, 82, 0.5); transform: translateY(-2px); }
-      .btn-primary:disabled { background-color: #FFEBEE; color: #FFCDD2; box-shadow: none; transform: none; }
+      /* 溫馨按鈕 (立即預約)：3D 按壓（改編自 21st.dev Pop Button）+ hover 抬升 */
+      .btn-primary { background-color: #FF8A80; border: none; border-bottom: 5px solid var(--primary-dark); border-radius: 30px; padding: 15px; font-weight: bold; font-size: 1.15rem; color: white; transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, border-bottom-width .1s, background-color .2s; box-shadow: 0 6px 14px rgba(255, 138, 128, 0.4); transform-origin: bottom; }
+      .btn-primary:hover:not(:disabled), .btn-primary:focus:not(:disabled) { background-color: #FF5252; box-shadow: 0 9px 20px rgba(255, 82, 82, 0.5); transform: translateY(-2px); }
+      .btn-primary:active:not(:disabled) { transform: translateY(2px) scaleY(.96); border-bottom-width: 2px; box-shadow: 0 3px 8px rgba(255, 138, 128, 0.3); }
+      .btn-primary:disabled { background-color: #FFEBEE; color: #FFCDD2; box-shadow: none; transform: none; border-bottom-color: #FFCDD2; }
 
       /* 試吃內容說明框：改為薄荷綠/抹茶色調，顯得清爽 */
       .info-box { background-color: #F1F8E9; border: 2px solid #C5E1A5; border-radius: 20px; padding: 12px 20px; font-size: 0.95rem; color: #558B2F; margin-bottom: 1rem; }
@@ -49,7 +52,9 @@
       /* 匯款資訊框 */
       .bank-info { background-color: #FFF9C4; border: 2px dashed #FFD54F; border-radius: 15px; padding: 12px 16px; margin-bottom: 10px; color: #E65100; }
       .bank-highlight { font-weight: bold; font-size: 1.1rem; color: #D2691E; }
-      .btn-copy-small { background-color: #FF8A80; color: #fff; border: none; border-radius: 15px; padding: 4px 12px; font-size: 0.8rem; margin-left: 8px; cursor: pointer; }
+      .btn-copy-small { background-color: #FF8A80; color: #fff; border: none; border-radius: 15px; padding: 4px 12px; font-size: 0.8rem; margin-left: 8px; cursor: pointer; transition: transform .15s cubic-bezier(.34,1.56,.64,1), background-color .15s; }
+      .btn-copy-small:hover { transform: scale(1.08); }
+      .btn-copy-small:active { background-color: #FF5252; transform: scale(.92); }
 
       /* === 時段按鈕標籤化 (胖胖小方塊) === */
       #time-slots-container { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
@@ -59,8 +64,14 @@
   width: 0;
   height: 0;
 } /* ✅ 視覺隱藏，但保留 DOM 實體讓 iOS 可以順利驗證 */
-      .time-slot-item .form-check-label { background-color: #FFF0F5; border: 2px solid #F8BBD0; border-radius: 20px; padding: 10px 22px; cursor: pointer; transition: 0.2s; color: #D81B60; font-weight: bold; }
-      .time-slot-item .form-check-input:checked + .form-check-label { background-color: #F06292; color: white; border-color: #F06292; box-shadow: 0 4px 10px rgba(240, 98, 146, 0.4); transform: scale(1.05); }
+      .time-slot-item .form-check-label { display: inline-block; background-color: #FFF0F5; border: 2px solid #F8BBD0; border-radius: 14px; padding: 10px 22px; cursor: pointer; transition: transform .25s cubic-bezier(.34,1.56,.64,1), border-color .2s, background-color .2s, box-shadow .25s; color: #D81B60; font-weight: bold; }
+      .time-slot-item .form-check-input:not(:disabled):not(:checked) + .form-check-label:hover { transform: translateY(-2px); border-color: #F06292; box-shadow: 0 6px 14px rgba(240, 98, 146, .18); }
+      .time-slot-item .form-check-input:not(:disabled) + .form-check-label:active { transform: scale(.95); }
+      /* 選中回饋：卡片果凍彈跳（改編自 21st.dev 微互動） */
+      .time-slot-item .form-check-input:checked + .form-check-label { background-color: #F06292; color: white; border-color: #F06292; box-shadow: 0 4px 10px rgba(240, 98, 146, 0.4); transform: scale(1.05); animation: jellyBounce .5s cubic-bezier(.34,1.56,.64,1); }
+      @keyframes jellyBounce { 0% { transform: scale(1); } 30% { transform: scale(1.08, 1.0); } 55% { transform: scale(1.02, 1.08); } 75% { transform: scale(1.06, 1.03); } 100% { transform: scale(1.05); } }
+      @keyframes popIn { 0% { transform: scale(.4); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+      #totalAmountDisplay.bump { animation: popIn .4s cubic-bezier(.34,1.56,.64,1); transform-origin: left center; }
       .time-slot-item .form-check-input:disabled + .form-check-label { background-color: #F5F5F5; border-color: #E0E0E0; color: #BDBDBD; cursor: not-allowed; text-decoration: line-through; }
 
       /* 成功提示訊息 */
@@ -101,6 +112,34 @@
 
       /* LIFF 阻擋畫面（非 LINE App 內開啟時顯示） */
       #webBlockedMessage { text-align: center; padding: 60px 20px; color: #5C4033; }
+
+      /* ===== 進場動畫（改編自 21st.dev Blur Fade：模糊+上浮+微彈，逐段錯開）===== */
+      @keyframes blurFadeUp {
+        from { opacity: 0; transform: translateY(16px) scale(.98); filter: blur(6px); }
+        to   { opacity: 1; transform: translateY(0) scale(1);   filter: blur(0); }
+      }
+      .enter { animation: blurFadeUp .6s cubic-bezier(.22,.9,.35,1.15) both; animation-delay: calc(var(--i, 0) * 90ms); }
+      @keyframes bannerIn { from { opacity: 0; transform: scale(1.04); filter: blur(10px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+      #footer-decoration { animation: bannerIn .8s ease-out both; }
+
+      /* 條件出現的區塊：軟著陸 */
+      @keyframes softDrop { from { opacity: 0; transform: translateY(-8px) scale(.97); } to { opacity: 1; transform: none; } }
+      #flavor2-container, #bankInfoArea, #linePayInfoArea { animation: softDrop .4s cubic-bezier(.34,1.56,.64,1); }
+
+      /* ===== 畫面切換轉場：表單淡出上飄 → 成功畫面果凍彈入 ===== */
+      @keyframes viewOut { to { opacity: 0; transform: translateY(-20px) scale(.97); filter: blur(4px); } }
+      .view-out { animation: viewOut .35s ease-in both; pointer-events: none; }
+      @keyframes viewIn { from { opacity: 0; transform: translateY(30px) scale(.94); } 70% { transform: translateY(-4px) scale(1.01); } to { opacity: 1; transform: none; } }
+      #successMessage.show { animation: viewIn .55s cubic-bezier(.34,1.56,.64,1) both; }
+      @keyframes iconPop { 0% { transform: scale(0) rotate(-30deg); } 55% { transform: scale(1.25) rotate(8deg); } 75% { transform: scale(.92) rotate(-3deg); } 100% { transform: scale(1) rotate(0); } }
+      #successMessage.show .success-pop { display: inline-block; animation: iconPop .7s cubic-bezier(.34,1.56,.64,1) .15s both; }
+
+      /* 粒子（改編自 21st.dev Particle Button） */
+      .burst-dot { position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9999; }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -115,9 +154,9 @@
     </div>
 
     <div class="container">
-      <h2 class="text-center mb-4">LikeaDream門市試吃預約</h2>
+      <h2 class="text-center mb-4 enter" style="--i:0;">LikeaDream門市試吃預約</h2>
 
-      <div class="notice-box">
+      <div class="notice-box enter" style="--i:1;">
         <h5>⚠️ 預約須知（請務必閱讀）</h5>
         <ul>
           <li><strong>預約未完成：</strong>填寫後<span class="important-text">必須與客服人員確認，才算預約成功</span>。</li>
@@ -132,17 +171,17 @@
         <input type="hidden" id="lineNameField" name="lineName" value="">
         <input type="hidden" id="totalAmountField" name="totalAmount" value="100">
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:2;">
           <label for="name" class="form-label">姓名</label>
           <input type="text" class="form-control" id="name" name="name" required>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:3;">
           <label for="phone" class="form-label">電話</label>
           <input type="tel" class="form-control" id="phone" name="phone" pattern="[0-9]{10}" title="請輸入10碼數字，例如：0912345678" placeholder="例如：0912345678" required>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:4;">
           <label for="peopleCount" class="form-label">人數</label>
           <select class="form-select" id="peopleCount" name="peopleCount" required onchange="toggleFlavor2()">
             <option value="1" selected>1人</option>
@@ -151,12 +190,12 @@
           <div id="totalAmountDisplay" class="important-text mt-1"></div>
         </div>
 
-        <div class="info-box">
+        <div class="info-box enter" style="--i:5;">
           💡 <strong>試吃內容：</strong><br>
           門市試吃會提供蜂蜜蛋糕試吃，以及全品項手工餅乾 5 塊。
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:6;">
           <label for="flavor1" class="form-label">試吃蛋糕口味</label>
           <select class="form-select" id="flavor1" name="flavor1" required>
             <option value="" disabled selected>請選擇口味</option>
@@ -176,19 +215,19 @@
           </select>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:7;">
           <label for="date" class="form-label">選擇日期</label>
           <input type="date" class="form-control" id="date" name="date" required onchange="checkAvailability()">
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:8;">
           <label class="form-label">選擇時段</label>
           <div id="time-slots-container">
             <p class="text-muted small">請先選擇日期以查看可預約時段</p>
           </div>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 enter" style="--i:9;">
           <label for="paymentMethod" class="form-label">付款方式</label>
           <select class="form-select" id="paymentMethod" name="paymentMethod" required onchange="togglePayment()">
             <option value="匯款轉帳" selected>匯款轉帳</option>
@@ -212,14 +251,16 @@
           🟢 送出預約後，畫面將出現 LINE Pay 付款連結，請點擊完成付款。
         </div>
 
-        <div class="mb-3 form-check" style="margin-top: 20px;">
+        <div class="mb-3 form-check enter" style="--i:10; margin-top: 20px;">
           <input type="checkbox" class="form-check-input" id="agreeRules" required style="width: 1.2rem; height: 1.2rem; margin-top: 0.2rem;">
           <label class="form-check-label" for="agreeRules" style="color: #D84315; font-weight: bold; font-size: 0.95rem; margin-left: 5px;">
             我已閱讀預約須知，並了解需與客服確認才算預約成功。
           </label>
         </div>
 
+        <div class="enter" style="--i:11;">
         <button type="button" class="btn btn-primary w-100" id="submitBtn" onclick="submitBooking()" disabled>立即預約</button>
+        </div>
       </form>
 
       <div id="successMessage" style="display: none;"></div>
@@ -257,7 +298,11 @@
 
         var total = Number(count) * 100;
         document.getElementById('totalAmountField').value = String(total);
-        document.getElementById('totalAmountDisplay').innerText = '💰 共需支付 NT$' + total;
+        var totalDisplay = document.getElementById('totalAmountDisplay');
+        totalDisplay.innerText = '💰 共需支付 NT$' + total;
+        totalDisplay.classList.remove('bump');
+        void totalDisplay.offsetWidth; // 重觸發動畫
+        totalDisplay.classList.add('bump');
       }
       // 本次開放預約的起始日期，以及已額滿的特定日期（額滿時可在此陣列加入更多日期）
       var reservationStartDate = '2026-07-10';
@@ -505,8 +550,60 @@
         return lines.join('\n');
       }
 
-      // ===== 送出成功畫面（含付款提醒＋回傳LINE三層 fallback） =====
+      // ===== 粒子爆發（改編自 21st.dev Particle Button）=====
+      function burstParticles(btn) {
+        var rect = btn.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var colors = ['#f8b4c4', '#FF8A80', '#ffd97d', '#a8e6cf', '#fff'];
+        for (var i = 0; i < 10; i++) {
+          var el = document.createElement('div');
+          el.className = 'burst-dot';
+          el.style.left = cx + 'px';
+          el.style.top = cy + 'px';
+          el.style.background = colors[i % colors.length];
+          document.body.appendChild(el);
+          var dx = (i % 2 ? 1 : -1) * (Math.random() * 60 + 25);
+          var dy = -Math.random() * 60 - 25;
+          if (el.animate) {
+            el.animate([
+              { transform: 'translate(0,0) scale(0)', opacity: 1 },
+              { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(1.1)', opacity: 1, offset: 0.5 },
+              { transform: 'translate(' + (dx * 1.5) + 'px,' + (dy * 1.6) + 'px) scale(0)', opacity: 0 }
+            ], { duration: 650, delay: i * 35, easing: 'ease-out' }).onfinish = (function(node) {
+              return function() { node.remove(); };
+            })(el);
+          } else {
+            el.remove();
+          }
+        }
+      }
+
+      // ===== 彩帶慶祝（改編自 21st.dev magicui Confetti，奶油粉彩配色）=====
+      function fireConfetti() {
+        if (typeof confetti === 'undefined') return;
+        var colors = ['#f8b4c4', '#FF8A80', '#ffd97d', '#a8e6cf', '#fff1e6'];
+        confetti({ particleCount: 70, spread: 80, origin: { y: 0.35 }, colors: colors, scalar: 0.95, shapes: ['circle'], ticks: 120 });
+        setTimeout(function() {
+          confetti({ particleCount: 40, spread: 110, origin: { y: 0.3 }, colors: colors, scalar: 0.7, shapes: ['circle'], ticks: 100 });
+        }, 180);
+        try {
+          var cake = confetti.shapeFromText({ text: '🍰', scalar: 2 });
+          setTimeout(function() {
+            confetti({ particleCount: 8, spread: 70, origin: { y: 0.35 }, shapes: [cake], scalar: 2, ticks: 90, gravity: 0.8 });
+          }, 120);
+        } catch (e) { /* 舊瀏覽器不支援 emoji 形狀就略過 */ }
+      }
+
+      // ===== 送出成功畫面（含付款提醒＋回傳LINE三層 fallback）=====
+      // 動效改版：表單淡出上飄 → 360ms 後隱藏 → 成功訊息果凍彈入 → 300ms 後彩帶（業務組裝邏輯不變）
       function showSuccess(data) {
+        var form = document.getElementById('bookingForm');
+        form.classList.add('view-out');
+
+        setTimeout(function() {
+        form.style.display = 'none';
+
         var paymentMethod = data.paymentMethod;
         var msgBox = document.getElementById('successMessage');
         msgBox.style.display = 'block';
@@ -514,22 +611,22 @@
         var paymentAreaHtml = '';
         if (paymentMethod === 'LINE PAY') {
           paymentAreaHtml =
-            '<div id="successLinePayArea" style="margin-top:15px;">' +
+            '<div id="successLinePayArea" class="enter" style="--i:2; margin-top:15px;">' +
               '<p>🟢 請點擊下方按鈕完成付款</p>' +
               '<a href="' + LINE_PAY_QR_URL + '" target="_blank" class="btn" style="background:#06c755;color:#fff;border-radius:20px;padding:10px 20px;">前往 LINE PAY 付款</a>' +
               '<div style="margin-top:10px; font-size:0.9rem; color:#D84315;">⚠️ 付款完成後，請務必【截圖付款成功畫面】，並連同下方的預約內容一併回傳給小幫手確認喔！</div>' +
             '</div>';
         } else {
           paymentAreaHtml =
-            '<div style="margin-top:15px; font-size:0.9rem; color:#D84315;">⚠️ 請於轉帳完成後，將【轉帳成功畫面截圖】連同下方的預約內容一併回傳給小幫手確認喔！</div>';
+            '<div class="enter" style="--i:2; margin-top:15px; font-size:0.9rem; color:#D84315;">⚠️ 請於轉帳完成後，將【轉帳成功畫面截圖】連同下方的預約內容一併回傳給小幫手確認喔！</div>';
         }
 
         msgBox.innerHTML =
           '<div class="success-message">' +
-            '<h4>🎉 已送出預約資料</h4>' +
-            '<p>請等待客服人員聯繫確認才算預約成功。</p>' +
+            '<h4 class="enter" style="--i:0;"><span class="success-pop">🎉</span> 已送出預約資料</h4>' +
+            '<p class="enter" style="--i:1;">請等待客服人員聯繫確認才算預約成功。</p>' +
             paymentAreaHtml +
-            '<div id="sendOrderArea" style="margin-top:20px;">' +
+            '<div id="sendOrderArea" class="enter" style="--i:3; margin-top:20px;">' +
               '<p id="sendOrderStatus" class="text-muted small"></p>' +
               '<div id="manualCopyArea" style="display:none;">' +
                 '<button type="button" class="btn btn-primary" onclick="manualCopyOrder()">📋 複製預約內容</button>' +
@@ -540,10 +637,14 @@
             '</div>' +
           '</div>';
 
+        msgBox.classList.add('show');
         msgBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         pendingOrderText = buildFinalText(data);
         trySendMessages();
+
+        setTimeout(fireConfetti, 300);
+        }, 360);
       }
 
       // Tier 1：直接送回目前的 LINE 對話視窗
@@ -612,8 +713,9 @@
           return;
         }
 
-        // 2. 顯示載入中遮罩
+        // 2. 顯示載入中遮罩（送出瞬間在按鈕位置爆出粒子）
         document.getElementById('loading').style.display = 'flex';
+        burstParticles(document.getElementById('submitBtn'));
 
         // 3. 呼叫後端(GAS Web App)寫入資料
         // ✅ Content-Type 刻意用 text/plain，避免瀏覽器對 GAS 發出 CORS 預檢請求(OPTIONS)而失敗
@@ -630,8 +732,7 @@
             var response = JSON.parse(text);
 
             if (response.status === 'success') {
-              // 隱藏表單，顯示成功訊息
-              form.style.display = 'none';
+              // 隱藏表單，顯示成功訊息（表單隱藏移入 showSuccess 轉場：view-out → 360ms 後 display:none）
               showSuccess(data);
             } else {
               alert(response.message);
